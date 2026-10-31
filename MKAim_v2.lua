@@ -220,14 +220,13 @@ local function CreateNotify(title, message)
     local is2 = Instance.new("UIStroke", IconCircle)
     is2.Color = NC.Pink is2.Thickness = 1 is2.Transparency = 0.2
 
-    local IconLbl = Instance.new("TextLabel", IconCircle)
-    IconLbl.Size               = UDim2.fromScale(1,1)
-    IconLbl.BackgroundTransparency = 1
-    IconLbl.Text               = "⚡"
-    IconLbl.TextSize           = 18
-    IconLbl.Font               = Enum.Font.GothamBold
-    IconLbl.TextColor3         = NC.White
-    IconLbl.ZIndex             = 1055
+    local IconImg = Instance.new("ImageLabel", IconCircle)
+    IconImg.Size                  = UDim2.fromOffset(28, 28)
+    IconImg.Position              = UDim2.fromOffset(4, 4)
+    IconImg.BackgroundTransparency = 1
+    IconImg.Image                 = "rbxassetid://122052941282436"
+    IconImg.ScaleType             = Enum.ScaleType.Fit
+    IconImg.ZIndex                = 1055
 
     -- title
     local TitleN = Instance.new("TextLabel", Frame)
@@ -839,42 +838,58 @@ end
 --  MAIN LOOP
 -- ═══════════════════════════════════════════════════════════════
 
+-- ESP chạy riêng 10fps — không ăn frame aimbot
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        pcall(UpdateESP)
+    end
+end)
+
+-- Aim loop — chỉ làm việc khi cần, skip toàn bộ khi idle
+local _fovDirty = true   -- update FOV position mỗi frame vẫn cần
 RunService:BindToRenderStep("MKAimV2", Enum.RenderPriority.Camera.Value+1, function()
-    -- FOV circle
+
+    -- FOV circle (nhẹ — chỉ move frame, không tính gì)
     if FOVSettings.Enabled and FOVSettings.Visible then
-        local m=UserInputService:GetMouseLocation()
-        FOVFrame.Position=UDim2.fromOffset(m.X,m.Y)
-        FOVFrame.Size=UDim2.fromOffset(FOVSettings.Amount*2,FOVSettings.Amount*2)
-        FOVStroke.Transparency=FOVSettings.Transparency
-        FOVFrame.Visible=true
+        local m = UserInputService:GetMouseLocation()
+        FOVFrame.Position    = UDim2.fromOffset(m.X, m.Y)
+        FOVFrame.Size        = UDim2.fromOffset(FOVSettings.Amount*2, FOVSettings.Amount*2)
+        FOVStroke.Transparency = FOVSettings.Transparency
+        FOVFrame.Visible     = true
     else
-        FOVFrame.Visible=false
+        FOVFrame.Visible = false
     end
 
-    UpdateESP()
-
-    if Running and Settings.Enabled then
-        GetClosestPlayer()
-        if Locked then
-            local char=Locked.Character
-            local part=char and char:FindFirstChild(Settings.LockPart)
-            if part then
-                FOVStroke.Color=FOVSettings.LockedColor
-                local goal=CFrame.new(Camera.CFrame.Position,part.Position)
-                if Settings.Sensitivity>0 then
-                    CancelAnim()
-                    Animation=TweenService:Create(Camera,
-                        TweenInfo.new(Settings.Sensitivity,Enum.EasingStyle.Sine,Enum.EasingDirection.Out),
-                        {CFrame=goal})
-                    Animation:Play()
-                else
-                    Camera.CFrame=goal
-                end
-            end
-        end
+    -- aim — skip hết nếu không active
+    if not Running or not Settings.Enabled then
+        FOVStroke.Color = FOVSettings.Color
+        return
     end
 
-    if not Running then FOVStroke.Color=FOVSettings.Color end
+    GetClosestPlayer()
+
+    if not Locked then
+        FOVStroke.Color = FOVSettings.Color
+        return
+    end
+
+    local char = Locked.Character
+    local part = char and char:FindFirstChild(Settings.LockPart)
+    if not part then return end
+
+    FOVStroke.Color = FOVSettings.LockedColor
+    local goal = CFrame.new(Camera.CFrame.Position, part.Position)
+
+    if Settings.Sensitivity > 0 then
+        CancelAnim()
+        Animation = TweenService:Create(Camera,
+            TweenInfo.new(Settings.Sensitivity, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+            {CFrame = goal})
+        Animation:Play()
+    else
+        Camera.CFrame = goal
+    end
 end)
 
 -- ═══════════════════════════════════════════════════════════════
